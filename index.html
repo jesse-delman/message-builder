@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<title>Message Builder</title>
+<style>
+  :root{
+    --bg:#f2f2f7; --group:#ffffff; --label:#000000; --label2:rgba(60,60,67,.6); --label3:rgba(60,60,67,.3);
+    --sep:rgba(60,60,67,.18); --fill:rgba(118,118,128,.12); --blue:#007aff; --green:#34c759; --bubble:#007aff;
+    --radius:12px; --ease:cubic-bezier(.23,1,.32,1);
+  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#000000; --group:#1c1c1e; --label:#ffffff; --label2:rgba(235,235,245,.6); --label3:rgba(235,235,245,.3);
+    --sep:rgba(84,84,88,.6); --fill:rgba(118,118,128,.24); --blue:#0a84ff; --green:#30d158; --bubble:#0a84ff;
+  }}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-text-size-adjust:100%}
+  body{background:var(--bg);color:var(--label);font:17px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,system-ui,sans-serif;
+    -webkit-font-smoothing:antialiased;padding-bottom:calc(96px + env(safe-area-inset-bottom))}
+  ::selection{background:var(--blue);color:#fff}
+  .app{max-width:1040px;margin:0 auto;padding:12px 16px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 32px;align-items:start}
+  header{grid-column:1/-1;padding:28px 4px 18px}
+  h1{font:700 34px/1.1 -apple-system,BlinkMacSystemFont,"SF Pro Display",system-ui,sans-serif;letter-spacing:-.02em}
+  header p{color:var(--label2);margin-top:6px;font-size:16px}
+
+  .section{margin-bottom:28px}
+  .section-title{font-size:13px;color:var(--label2);padding:0 16px 7px}
+  .section-foot{font-size:13px;color:var(--label2);padding:7px 16px 0}
+  .group{background:var(--group);border-radius:var(--radius);overflow:hidden}
+  .cell{display:flex;align-items:center;gap:12px;min-height:44px;padding:11px 16px;position:relative}
+  .cell + .cell::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+  .cell input[type=text]{all:unset;flex:1;font-size:17px;color:var(--label);min-width:0}
+  .cell input::placeholder{color:var(--label3)}
+  .cell .lbl{width:92px;flex:none;color:var(--label)}
+
+  /* segmented control */
+  .seg{position:relative;display:grid;grid-template-columns:1fr 1fr;background:var(--fill);border-radius:9px;padding:2px;margin-bottom:28px}
+  .seg .thumb{position:absolute;top:2px;bottom:2px;left:2px;width:calc(50% - 2px);border-radius:7px;background:var(--group);
+    box-shadow:0 3px 8px rgba(0,0,0,.12),0 3px 1px rgba(0,0,0,.04);transition:transform 260ms var(--ease)}
+  .seg[data-v="devon"] .thumb{transform:translateX(100%)}
+  .seg button{all:unset;position:relative;z-index:1;text-align:center;font-size:14px;font-weight:600;padding:8px 0;cursor:pointer;color:var(--label)}
+
+  /* problem list (single choice, checkmark like iOS) */
+  .choice{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:10px 16px;cursor:pointer;position:relative}
+  .choice + .choice::before{content:"";position:absolute;top:0;left:16px;right:0;height:.5px;background:var(--sep)}
+  .choice:active{background:var(--fill)}
+  .choice .txt{flex:1;min-width:0}
+  .choice .t{display:block;font-size:17px}
+  .choice .h{display:block;font-size:13px;color:var(--label2);margin-top:1px}
+  .choice .check{width:18px;height:18px;flex:none;color:var(--blue);opacity:0;transform:scale(.8);transition:opacity 160ms var(--ease),transform 200ms var(--ease)}
+  .choice[aria-checked="true"] .check{opacity:1;transform:none}
+  .custom{padding:0 16px 12px}
+  .custom input{all:unset;box-sizing:border-box;width:100%;background:var(--fill);border-radius:9px;padding:10px 12px;font-size:16px;color:var(--label)}
+
+  /* preview */
+  .preview{position:sticky;top:16px}
+  .chat{background:var(--group);border-radius:16px;padding:16px 14px 18px;min-height:240px;display:flex;flex-direction:column;gap:6px}
+  .chat .to{font-size:13px;color:var(--label2);text-align:center;margin-bottom:8px}
+  .bubble{align-self:flex-end;max-width:88%;overflow-wrap:anywhere;background:var(--bubble);color:#fff;border-radius:20px 20px 6px 20px;padding:10px 14px;
+    font-size:16px;line-height:1.38;white-space:pre-wrap;word-wrap:break-word;transition:opacity 180ms var(--ease)}
+  .bubble.dim{background:var(--fill);color:var(--label2)}
+  .chat .meta{align-self:flex-end;font-size:12px;color:var(--label2);margin-top:4px}
+  .meta .over{color:#ff3b30;font-weight:600}
+  .links{display:flex;justify-content:center;gap:24px;margin-top:12px}
+  .textbtn{all:unset;cursor:pointer;color:var(--blue);font-size:15px;padding:8px 4px}
+  .textbtn:active{opacity:.5}
+  .follow .bubble{font-size:15px}
+
+  /* bottom bar with the one main action */
+  .bar{position:fixed;left:0;right:0;bottom:0;z-index:10;padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+    background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:saturate(180%) blur(20px);backdrop-filter:saturate(180%) blur(20px);
+    border-top:.5px solid var(--sep)}
+  .bar .in{max-width:1040px;margin:0 auto;display:flex;gap:10px;align-items:center}
+  .primary{all:unset;box-sizing:border-box;flex:1;text-align:center;font-size:17px;font-weight:600;color:#fff;background:var(--blue);
+    border-radius:14px;padding:15px 16px;cursor:pointer;transition:transform 160ms var(--ease),background-color 200ms ease,opacity 200ms ease}
+  .primary:active{transform:scale(.97)}
+  .primary[disabled]{opacity:.35;cursor:default;transform:none}
+  .primary.done{background:var(--green)}
+  .hint{font-size:13px;color:var(--label2);max-width:200px}
+  :focus-visible{outline:3px solid var(--blue);outline-offset:2px;border-radius:8px}
+  @media (max-width:800px){
+    .app{grid-template-columns:minmax(0,1fr)}
+    .form,.preview{min-width:0}
+    .preview{position:static}
+    .hint{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Message Builder</h1>
+    <p>Tick what you saw on their page. Copy. Paste.</p>
+  </header>
+
+  <div class="form">
+    <div class="seg" id="seg" data-v="jesse" role="radiogroup" aria-label="Who is sending">
+      <span class="thumb" aria-hidden="true"></span>
+      <button role="radio" data-sender="jesse" aria-checked="true">Jesse</button>
+      <button role="radio" data-sender="devon" aria-checked="false">Devon 🙌</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">The shop</div>
+      <div class="group">
+        <label class="cell"><span class="lbl">Name</span><input type="text" id="name" placeholder="Marcus or Level Up" autocomplete="off"></label>
+        <label class="cell"><span class="lbl">You liked</span><input type="text" id="liked" placeholder="the burst fade on the curly hair" autocomplete="off"></label>
+      </div>
+      <div class="section-foot">Mention a real cut from a recent post. It's what makes the message feel human.</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">What you noticed</div>
+      <div class="group" id="probs" role="radiogroup" aria-label="What you noticed"></div>
+      <div class="section-foot">Pick one thing you actually checked. If nothing's wrong, skip this shop.</div>
+    </div>
+  </div>
+
+  <div class="preview">
+    <div class="section">
+      <div class="section-title">Message</div>
+      <div class="chat">
+        <div class="to" id="to">To: the shop</div>
+        <div class="bubble dim" id="out" aria-live="polite"></div>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="links"><button class="textbtn" id="shuffle">Different wording</button></div>
+    </div>
+    <div class="section follow">
+      <div class="section-title">Follow-up, if no reply in 3–4 days</div>
+      <div class="chat" style="min-height:0">
+        <div class="bubble" id="follow"></div>
+      </div>
+      <div class="links"><button class="textbtn" id="copyFollow">Copy follow-up</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="bar"><div class="in">
+  <span class="hint" id="barHint">Pick what you noticed to finish the message.</span>
+  <button class="primary" id="copy" disabled>Copy Message</button>
+</div></div>
+
+<script>
+(() => {
+  'use strict';
+  const LINKS = { jesse: 'https://foxglove-barber-sample.netlify.app/', devon: 'https://sidecar-barbershop-sample.netlify.app/' };
+  const PROBLEMS = [
+    { id: 'bookingOnly', title: 'Bio only links to booking', hint: 'Booksy, Squire, Vagaro, no site of their own',
+      seen: ['your bio only links to your booking page', 'your link in bio goes straight to booking'],
+      cost: ['so people can book but can\'t really see your work or what makes you different', 'which works for regulars, but new people don\'t get a feel for your cuts before booking'] },
+    { id: 'noSite', title: 'No website on Google', hint: 'Google the shop, look for a Website button',
+      seen: ['your Google listing doesn\'t have a website', 'when I looked you up on Google there wasn\'t a site linked'],
+      cost: ['so people searching "barber near me" can\'t click through to see your work', 'so anyone finding you on Google has nothing to tap through to'] },
+    { id: 'noPrices', title: 'No prices anywhere', hint: 'Not on the site, bio, or booking page',
+      seen: ['I couldn\'t find your prices anywhere', 'your prices aren\'t listed anywhere I could find'],
+      cost: ['so people probably DM you just to ask', 'which usually means a lot of "how much?" messages'] },
+    { id: 'brokenBook', title: 'Book button is broken', hint: 'Tap it on your phone',
+      seen: ['the Book button on your site doesn\'t work for me', 'your site\'s Book button goes to an error page'],
+      cost: ['so people who are ready to book might just give up', 'and that\'s the one button that matters most'] },
+    { id: 'phone', title: 'Hard to use on a phone', hint: 'Tiny text, zooming, things cut off',
+      seen: ['your site is pretty hard to use on my phone', 'on my phone your site\'s text is tiny and things get cut off'],
+      cost: ['and that\'s where almost everyone will look at it', 'which is where most of your customers will see it'] },
+    { id: 'unfinished', title: 'Site looks unfinished', hint: 'Placeholder text, typos, old info',
+      seen: ['your site still has some placeholder text and old info on it', 'a few parts of your site look unfinished'],
+      cost: ['so it doesn\'t match how good your cuts look on here', 'which undersells how good your work is'] },
+    { id: 'hours', title: 'Hours don\'t match', hint: 'Site vs Google vs Instagram',
+      seen: ['your hours are different on Google and on your site', 'your hours don\'t match between your site and Google'],
+      cost: ['so people might show up when you\'re closed', 'which can send people somewhere else'] },
+    { id: 'custom', title: 'Something else', hint: 'Say it in your own words', seen: null,
+      cost: ['so I thought I\'d reach out', 'and figured I\'d mention it'] }
+  ];
+  const OPEN_LIKED = ['Hey {name}! That {liked} is clean.', 'Hey {name}, the {liked} on your page is hard.', 'Yo {name}! Saw the {liked}, really clean work.'];
+  const OPEN_PLAIN = ['Hey {name}! Love the work on your page.', 'Hey {name}, your cuts are really clean.', 'Yo {name}! Been looking through your page, great work.'];
+  const PITCH = ['I build websites for barbers, here\'s an example: {link}', 'I make websites for barbershops, here\'s a sample I made: {link}', 'I build sites for barbers, quick example: {link}'];
+  const ASK = ['Want me to show you what yours could look like?', 'Want me to send you a quick idea for yours?', 'Would you want to see what one for your shop could look like?'];
+  const FOLLOW = ['Hey {name}, just bumping this in case it got buried. No worries if not!', 'Hey {name}! Following up on this, happy to show you a quick idea for your shop if you\'re interested.'];
+  const CHECK = '<svg class="check" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+
+  const $ = (id) => document.getElementById(id);
+  let sender = 'jesse', picked = null, seed = 0, customInput = null;
+  try { sender = localStorage.getItem('sender') === 'devon' ? 'devon' : 'jesse'; } catch (e) { /* default */ }
+  const pick = (arr, n) => arr[(seed + n) % arr.length];
+  const fill = (s, v) => s.replace(/\{(\w+)\}/g, (_, k) => v[k]);
+  const lower1 = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+
+  function renderProblems() {
+    const box = $('probs');
+    PROBLEMS.forEach((p) => {
+      const b = document.createElement('button');
+      b.className = 'choice'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', 'false'); b.dataset.id = p.id;
+      const txt = document.createElement('span'); txt.className = 'txt';
+      const t = document.createElement('span'); t.className = 't'; t.textContent = p.title;
+      const h = document.createElement('span'); h.className = 'h'; h.textContent = p.hint;
+      txt.append(t, h);
+      b.append(txt);
+      b.insertAdjacentHTML('beforeend', CHECK);
+      b.addEventListener('click', () => choose(p.id));
+      box.append(b);
+      if (p.id === 'custom') {
+        const wrap = document.createElement('div'); wrap.className = 'custom'; wrap.hidden = true; wrap.id = 'customWrap';
+        customInput = document.createElement('input'); customInput.type = 'text'; customInput.placeholder = 'e.g. your site still shows 2022 prices';
+        customInput.setAttribute('aria-label', 'What you noticed');
+        customInput.addEventListener('input', build);
+        wrap.append(customInput); box.append(wrap);
+      }
+    });
+  }
+
+  function choose(id) {
+    picked = id;
+    document.querySelectorAll('.choice').forEach((c) => c.setAttribute('aria-checked', String(c.dataset.id === id)));
+    $('customWrap').hidden = id !== 'custom';
+    if (id === 'custom') customInput.focus();
+    build();
+  }
+
+  function build() {
+    const rawName = $('name').value.trim();
+    const v = { name: rawName || 'there', liked: $('liked').value.trim(), link: LINKS[sender] };
+    const lines = [fill(pick(v.liked ? OPEN_LIKED : OPEN_PLAIN, 0), v)];
+    const p = PROBLEMS.find((x) => x.id === picked);
+    const customText = customInput ? customInput.value.trim() : '';
+    if (p) {
+      const seen = p.id === 'custom' ? lower1(customText) : pick(p.seen, 1);
+      if (seen) lines.push('Quick thing I noticed: ' + seen + ', ' + pick(p.cost, 2) + '.');
+    }
+    lines.push(fill(pick(PITCH, 3), v));
+    lines.push(pick(ASK, 4) + (sender === 'devon' ? ' 🙌' : ''));
+    const msg = lines.join('\n\n');
+    const ready = !!p && (p.id !== 'custom' || !!customText);
+    $('out').textContent = msg;
+    $('out').classList.toggle('dim', !ready);
+    $('to').textContent = 'To: ' + (rawName || 'the shop') + (sender === 'devon' ? ' · sent by Devon' : '');
+    $('meta').replaceChildren();
+    const m = document.createElement('span');
+    m.textContent = msg.length + ' characters';
+    if (msg.length > 900) m.className = 'over';
+    $('meta').append(m);
+    $('follow').textContent = fill(pick(FOLLOW, 5), v) + (sender === 'devon' ? ' 🙌' : '');
+    $('copy').disabled = !ready;
+    $('barHint').textContent = ready ? 'Ready to paste into their DMs.' : 'Pick what you noticed to finish the message.';
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.append(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+      ta.remove(); return ok;
+    }
+  }
+  function flash(btn, label, done) {
+    const orig = btn.dataset.label || btn.textContent;
+    btn.dataset.label = orig;
+    btn.textContent = label;
+    btn.classList.toggle('done', !!done);
+    clearTimeout(btn._t);
+    btn._t = setTimeout(() => { btn.textContent = orig; btn.classList.remove('done'); }, 1600);
+  }
+
+  function setSender(s) {
+    sender = s;
+    try { localStorage.setItem('sender', s); } catch (e) { /* ignore */ }
+    $('seg').dataset.v = s;
+    document.querySelectorAll('[data-sender]').forEach((b) => b.setAttribute('aria-checked', String(b.dataset.sender === s)));
+    build();
+  }
+
+  renderProblems();
+  document.querySelectorAll('[data-sender]').forEach((b) => b.addEventListener('click', () => setSender(b.dataset.sender)));
+  ['name', 'liked'].forEach((id) => $(id).addEventListener('input', build));
+  $('shuffle').addEventListener('click', () => { seed++; build(); });
+  $('copy').addEventListener('click', async () => {
+    if ($('copy').disabled) return;
+    const ok = await copyText($('out').textContent);
+    flash($('copy'), ok ? 'Copied ✓' : 'Select the text to copy', ok);
+  });
+  $('copyFollow').addEventListener('click', async () => {
+    const ok = await copyText($('follow').textContent);
+    flash($('copyFollow'), ok ? 'Copied ✓' : 'Select the text to copy', false);
+  });
+  setSender(sender);
+})();
+</script>
+</body>
+</html>
